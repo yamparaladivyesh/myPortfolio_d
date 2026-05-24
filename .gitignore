@@ -1,0 +1,47 @@
+# Frontend
+
+frontend/node_modules
+frontend/build
+frontend/dist
+
+# Backend
+
+backend/venv
+backend/__pycache__
+backend/*.pyc
+
+# Environment files
+
+.env
+backend/.env
+frontend/.env
+
+# VS Code
+
+.vscode/
+
+# OS files
+
+.DS_Store
+Thumbs.db
+
+# Python cache
+
+__pycache__/
+*.py[cod]
+
+# Logs
+
+*.log
+
+# MongoDB local files
+
+*.mongodb
+
+# Package locks optional
+
+package-lock.json
+
+# Coverage
+
+coverage/
