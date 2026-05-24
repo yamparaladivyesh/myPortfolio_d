@@ -17,10 +17,51 @@ const getApiUrl = () => {
   return 'https://myportfolio-d-xgw3.onrender.com/api';
 };
 
+export const API_ROOT = (() => {
+  const envUrl = process.env.REACT_APP_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
+  return 'https://myportfolio-d-xgw3.onrender.com';
+})();
+
 const api = axios.create({
   baseURL: getApiUrl(),
   timeout: 12000,
 });
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRetryableError = (error) => {
+  if (error.response) {
+    return error.response.status >= 500;
+  }
+  return true;
+};
+
+const withRetry = async (fn, retries = 12, delayMs = 5000) => {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= retries || !isRetryableError(error)) {
+        throw error;
+      }
+      await wait(delayMs);
+    }
+  }
+  throw lastError;
+};
+
+export const pingBackend = async () => {
+  const response = await axios.get(API_ROOT, {
+    timeout: 10000,
+    validateStatus: () => true,
+  });
+  return response;
+};
 
 const normalizeSkillGroups = (source) => {
   const categories = new Map(
@@ -139,17 +180,17 @@ const projectToBackendFormat = (project) => ({
 });
 
 export const getSkills = async () => {
-  const response = await api.get('/skills');
+  const response = await withRetry(() => api.get('/skills'));
   return normalizeSkillGroups(response.data);
 };
 
 export const getProjects = async () => {
-  const response = await api.get('/projects');
+  const response = await withRetry(() => api.get('/projects'));
   return normalizeProjects(response.data);
 };
 
 export const loginAdmin = async (password) => {
-  const response = await api.post('/admin/login', { password });
+  const response = await withRetry(() => api.post('/admin/login', { password }));
   const data = response.data;
   if (typeof data === 'object' && data !== null) {
     return data.success !== false;
@@ -158,13 +199,13 @@ export const loginAdmin = async (password) => {
 };
 
 export const addSkill = async ({ name, category }) => {
-  const response = await api.post('/skills', { name, category });
+  const response = await withRetry(() => api.post('/skills', { name, category }));
   return response.data;
 };
 
 export const deleteSkill = async (id) => {
   if (!id) throw new Error('Skill id is required');
-  await api.delete(`/skills/${id}`);
+  await withRetry(() => api.delete(`/skills/${id}`));
 };
 
 export const reorderSkills = async (updates) => {
@@ -175,15 +216,15 @@ export const reorderSkills = async (updates) => {
 
 export const addProject = async (project) => {
   const payload = projectToBackendFormat(project);
-  await api.post('/projects', payload);
+  await withRetry(() => api.post('/projects', payload));
 };
 
 export const updateProject = async (project) => {
   const payload = projectToBackendFormat(project);
   if (project.id) {
-    await api.put(`/projects/${project.id}`, payload);
+    await withRetry(() => api.put(`/projects/${project.id}`, payload));
   } else {
-    await api.put('/projects', payload);
+    await withRetry(() => api.put('/projects', payload));
   }
 };
 
@@ -192,15 +233,15 @@ export const matchSkills = async (jobDescription, portfolio = null) => {
   if (portfolio && typeof portfolio === 'object') {
     payload.portfolio = portfolio;
   }
-  const response = await api.post('/skillmatch', payload);
+  const response = await withRetry(() => api.post('/skillmatch', payload));
   return response.data;
 };
 
 export const deleteProject = async (project) => {
   if (project.id) {
-    await api.delete(`/projects/${project.id}`);
+    await withRetry(() => api.delete(`/projects/${project.id}`));
   } else {
-    await api.delete('/projects', { data: { title: project.title } });
+    await withRetry(() => api.delete('/projects', { data: { title: project.title } }));
   }
 };
 

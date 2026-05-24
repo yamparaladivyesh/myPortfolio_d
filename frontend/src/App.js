@@ -12,7 +12,7 @@ import ContactDropdown from './components/ContactDropdown';
 import AdminLoginModal from './components/AdminLoginModal';
 import AdminPopup from './components/AdminPopup';
 import Footer from './components/Footer';
-import { getProjects, getSkills, loginAdmin } from './api';
+import { getProjects, getSkills, loginAdmin, pingBackend } from './api';
 
 function App() {
   const [activePanel, setActivePanel] = useState(null);
@@ -21,6 +21,9 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [skillGroups, setSkillGroups] = useState([]);
   const [projectList, setProjectList] = useState([]);
+  const [backendReady, setBackendReady] = useState(false);
+  const [backendWakeAttempts, setBackendWakeAttempts] = useState(0);
+  const [backendWakeError, setBackendWakeError] = useState('');
 
   const handleTogglePanel = (panelName) => {
     setActivePanel((current) => {
@@ -53,6 +56,23 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const waitForBackend = async () => {
+    setBackendWakeError('');
+    for (let attempt = 1; attempt <= 12; attempt += 1) {
+      setBackendWakeAttempts(attempt);
+      try {
+        await pingBackend();
+        setBackendReady(true);
+        return;
+      } catch (error) {
+        if (attempt < 12) {
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+      }
+    }
+    setBackendWakeError('Backend is taking too long to start. Please refresh or try again later.');
+  };
+
   const fetchSkills = async () => {
     try {
       const groups = await getSkills();
@@ -75,9 +95,14 @@ function App() {
   };
 
   useEffect(() => {
+    waitForBackend();
+  }, []);
+
+  useEffect(() => {
+    if (!backendReady) return;
     fetchSkills();
     fetchProjects();
-  }, []);
+  }, [backendReady]);
 
   const handleChangeProject = (direction) => {
     setProjectIndex((current) => {
@@ -128,6 +153,36 @@ function App() {
   const handleRefreshProjects = async () => {
     await fetchProjects();
   };
+
+  if (!backendReady) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          background: '#0f172a',
+          color: '#ffffff',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ maxWidth: 560 }}>
+          <h1 style={{ fontSize: '1.9rem', marginBottom: '1rem' }}>Starting backend server...</h1>
+          <p style={{ fontSize: '1rem', lineHeight: 1.6, marginBottom: '1rem' }}>
+            Please wait a few seconds while the backend wakes up. This may take up to one minute.
+          </p>
+          <p style={{ opacity: 0.85, marginBottom: '0.5rem' }}>
+            Attempt {backendWakeAttempts} of 12
+          </p>
+          {backendWakeError && (
+            <p style={{ color: '#f87171', marginTop: '1rem' }}>{backendWakeError}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
