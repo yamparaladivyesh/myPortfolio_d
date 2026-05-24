@@ -9,8 +9,16 @@ export const SKILL_CATEGORY_ORDER = [
   'Others',
 ];
 
+const getApiUrl = () => {
+  const envUrl = process.env.REACT_APP_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim()) {
+    return `${envUrl.trim().replace(/\/+$/, '')}/api`;
+  }
+  return 'https://myportfolio-d-xgw3.onrender.com/api';
+};
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000/api',
+  baseURL: getApiUrl(),
   timeout: 12000,
 });
 
